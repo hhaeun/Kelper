@@ -39,11 +39,13 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart2; // Aduino 
-
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
+
+UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t tx_cnt = 0;
@@ -54,9 +56,10 @@ volatile uint8_t txd[10];
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -65,9 +68,10 @@ static void MX_ADC1_Init(void);
 /* USER CODE BEGIN 0 */
 uint16_t adc1;
 uint16_t vout;
+/***
 float temp;
 
-#ifdef __GNUC__  //terminal 
+#ifdef __GNUC__  //terminal
 
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 
@@ -89,6 +93,9 @@ PUTCHAR_PROTOTYPE
  return ch;
 
 }
+
+***/
+
 /* USER CODE END 0 */
 
 /**
@@ -119,44 +126,37 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-   MX_DMA_Init(); // DMA
+  MX_DMA_Init();
   MX_USART2_UART_Init();
+  MX_ADC1_Init();
   MX_USART1_UART_Init();
-  MX_ADC1_Init(); 
   /* USER CODE BEGIN 2 */
-  //sprintf((char *)txd, "hello");
-  //HAL_UART_Transmit_IT(&huart1, (uint8_t *)txd, strlen((char *)txd));
-  //uint8_t str[]="hello\n\r";
+
   char uart_buf[30];
    uint32_t count;
    count=0;
-   /* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-   /* Infinite loop */
-   /* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
 
    uint32_t ADC1Result[5];
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)ADC1Result, 5);
 
    while (1)
    {
-     /* USER CODE END WHILE */
-      //HAL_UART_Transmit_IT(&huart1, str, sizeof(str));
-       //HAL_Delay(1000);
-      memset(uart_buf,0,30);
-      sprintf(uart_buf,"count_haeun : %d\n\r", count);
-      HAL_UART_Transmit_IT(&huart1, uart_buf, sizeof(uart_buf));  //reset 버튼 누르기
-      count++;
-      HAL_Delay(1000);
+    /* USER CODE END WHILE */
 
-
-      printf("%d  %d  %d  %d  %d\n", ADC1Result[0], ADC1Result[1], ADC1Result[2], ADC1Result[3],ADC1Result[4]);
-	     HAL_Delay (100);// terminal print
-
-     /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
+	   memset(uart_buf,0,30);
+	   sprintf(uart_buf,"%d  %d  %d  %d  %d\n", ADC1Result[0], ADC1Result[1], ADC1Result[2], ADC1Result[3],ADC1Result[4]);
+	         HAL_UART_Transmit_IT(&huart1, uart_buf, sizeof(uart_buf));  //reset 버튼 누르기
+	         count++;
+	         HAL_Delay(1000);
    }
-   /* USER CODE END 3 */
- }
+  /* USER CODE END 3 */
+}
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -175,7 +175,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -190,7 +190,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -200,8 +200,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
 }
+
 /**
   * @brief ADC1 Initialization Function
   * @param None
@@ -285,7 +285,6 @@ static void MX_ADC1_Init(void)
 
 }
 
-
 /**
   * @brief USART1 Initialization Function
   * @param None
@@ -349,6 +348,28 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 
 }
 
